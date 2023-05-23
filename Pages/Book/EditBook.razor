@@ -1,0 +1,138 @@
+﻿@page "/books/edit/{bookId:int}"
+@inject IDbContextFactory<ApplicationDbContext> ContextFactory
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Roles ="Librarian")]
+
+<PageTitle> Edit Book</PageTitle>
+<h1>Edit Book</h1>
+
+@if (Book is not null)
+{
+    <BookForm Book="@Book"
+              IsBusy="@IsBusy"
+              IsEdit="true"
+              OnSubmit="@HandleSubmit"
+              OnCancel="NavigateToBooksListPage"></BookForm>
+    @if (ErrorMessage is not null)
+    {
+        <br />
+        <div class="alert alert-danger" role="alert">
+            @ErrorMessage
+        </div>
+    }
+    <button class="btn btn-danger" disabled="@IsBusy" @onclick="HandleDelete">Delete</button>
+    @if (IsDeleteError)
+    {
+        <div class="alert alert-danger" role="alert">
+            Book cannot be deleted as it is currently on loan.
+        </div>
+    }
+}
+else if (IsBusy)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <p><em>Book not found.</em></p>
+}
+
+@code {
+    [Parameter]
+    public int BookId { get; set; }
+
+    private Book? Book { get; set; }
+
+    private bool IsBusy { get; set; }
+
+    private string? ErrorMessage { get; set; }
+
+    private bool IsDeleteError { get; set; }
+
+    private bool CanDelete => !IsBusy && !IsDeleteError;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        IsBusy = true;
+
+        IsDeleteError = false;
+
+        try
+        {
+            using var context = ContextFactory.CreateDbContext();
+
+            Book = await context.Books.FirstOrDefaultAsync(bk => bk.Id == BookId);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+
+    }
+
+    private async Task HandleSubmit(bool isValid)
+    {
+        if (Book is null || IsBusy || !isValid)
+        {
+            ErrorMessage = null;
+            return;
+        }
+        IsBusy = true;
+        try
+        {
+            using var context = ContextFactory.CreateDbContext();
+            context.Update(Book);
+            await context.SaveChangesAsync();
+            NavigateToBooksListPage();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error whilst saving the Book: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+
+        }
+    }
+
+    private async Task HandleDelete()
+    {
+        if (Book is null || IsBusy || !CanDelete)
+        {
+            return;
+        }
+        IsBusy = true;
+        try
+        {
+            using var context = ContextFactory.CreateDbContext();
+
+            // Check if the book is currently on loan
+            var loan = await context.Loans.FirstOrDefaultAsync(l => l.BookId == Book.Id && l.ReturnDate == null);
+            if (loan != null)
+            {
+                IsDeleteError = true;
+                return;
+            }
+
+            context.Remove(Book);
+            await context.SaveChangesAsync();
+            NavigateToBooksListPage();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error whilst deleting the Book: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    //return to main Books list
+    private void NavigateToBooksListPage()
+    {
+        NavigationManager.NavigateTo("/books/list");
+    }
+
+}

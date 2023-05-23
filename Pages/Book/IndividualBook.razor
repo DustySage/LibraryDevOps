@@ -1,0 +1,467 @@
+﻿@page "/books/view/{bookId:int}"
+@inject IDbContextFactory<ApplicationDbContext> ContextFactory
+@inject NavigationManager NavigationManager
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<AppUser> UserManager
+
+
+
+@if (Book is not null)
+{
+    <div class="card mb-3">
+        <div class="card-header">
+            <h1 class="card-title">@Book.Title</h1>
+        </div>
+        <div class="row g-0">
+            <div class="col-md-4">
+                <img src="@Book.ImageUrl" alt="@Book.Title" class="img-thumbnail">
+            </div>
+            <div class="col-md-8">
+                <div class="card-body">
+                    <h5 class="card-subtitle text-muted">@Book.Author</h5>
+                    <p class="card-text"><strong>ISBN:</strong> @Book.Isbn</p>
+                    <p class="card-text"><strong>Description:</strong> @Book.Description</p>
+                    <p class="card-text"><strong>Total Copies:</strong> @Book.TotalCopies</p>
+                    <p class="card-text"><strong>Available Copies:</strong> @Book.AvailableCopies</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+}
+
+
+<br />
+<AuthorizeView Roles="Patron">
+    <Authorized>
+
+
+
+@if (Book is not null)
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th scope="col">Borrow</th>
+                <th scope="col">Reserve</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    @if (CheckLoanStatus())
+                    {
+                        <button type="submit" class="btn btn-primary"
+                        @onclick="ReturnBook">
+                            Return Book
+                        </button>
+                        <button type="submit" class="btn btn-secondary"
+                        @onclick="RenewBook">
+                            Renew Book
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="submit" class="btn btn-primary"
+                        @onclick="BorrowBook">
+                            Borrow Book
+                        </button>
+                    }
+
+
+                </td>
+                <td>
+
+
+
+                    @if (!CheckLoanStatus())
+                    {
+                        @if (!CheckReservationStatus())
+                        {
+                            <button type="submit" class="btn btn-primary"
+                        @onclick="ReserveBook"
+                                    disabled="@HasReservedBook">
+                                Reserve Book
+                            </button>
+                        }
+                        else if (CheckReservationStatus())
+                        {
+                            <button type="submit" class="btn btn-danger"
+                        @onclick="CancelReservation">
+                                Cancel Reservation
+                            </button>
+                        }
+                    }
+                    else
+                    {
+                        <p class="">You cannot reserve a book that is on loan to you.</p>
+                    }
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+
+
+    @if (!string.IsNullOrEmpty(ErrorMessage) || !string.IsNullOrEmpty(SuccessMessage))
+    {
+        <div class="my-3">
+            <div class="card">
+                <div class="card-body d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        @if (!string.IsNullOrEmpty(ErrorMessage))
+                        {
+                            <div class="alert alert-danger mb-0" role="alert">
+                                @ErrorMessage
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(SuccessMessage))
+                        {
+                            
+                            <div class="alert alert-success mb-0" role="alert">
+                                @SuccessMessage
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (Book.Loans != null && Book.Loans.Any(l => l.PatronId == userId && !l.IsReturned))
+    {
+        <div class="card mb-3" style="background: linear-gradient(to right bottom, #e6e6fa, #d8bfd8);">
+            <div class="card-header">
+                <h3 class="card-title">Current Loan Information:</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col">
+                        <p><strong>Checkout Date:</strong></p>
+                        <p>@(Book.Loans.FirstOrDefault(l => l.PatronId == userId && !l.IsReturned)?.CheckoutDate.ToString("d MMMM yyyy"))</p>
+                    </div>
+                    <div class="col">
+                        <p><strong>Due Date:</strong></p>
+                        <p>@(Book.Loans.FirstOrDefault(l => l.PatronId == userId && !l.IsReturned)?.DueDate.ToString("d MMMM yyyy"))</p>
+                    </div>
+                    <div class="col">
+                        <p><strong>Return Date:</strong></p>
+                        <p>@Book.Loans.FirstOrDefault(l => l.PatronId == userId && !l.IsReturned)?.ReturnDate</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    }
+
+    @if (Book.Loans != null && Book.Loans.Any(l => l.PatronId == userId && l.IsReturned))
+    {
+        <div class="card mb-3 border" style="background: linear-gradient(to right bottom, #e6e6fa, #d8bfd8);">
+            <div class="card-header">
+                <h3 class="card-title">Past Loans</h3>
+            </div>
+            <div class="card-body">
+                @foreach (var loan in Book.Loans.Where(l => l.PatronId == userId && l.IsReturned))
+                {
+                    <div class="card mb-3 border" style="background: linear-gradient(to right bottom, #e6e6fa, #d8bfd8);">
+                        <div class="card-body ">
+                            <p><strong>Checkout Date:</strong> @loan.CheckoutDate.ToString("d MMMM yyyy")</p>
+                            <p><strong>Due Date:</strong> @loan.DueDate.ToString("d MMMM yyyy")</p>
+                            <p><strong>Return Date:</strong> @(loan?.ReturnDate?.ToString("d MMMM yyyy"))</p>
+                        </div>
+                    </div>
+                }
+
+            </div>
+        </div>
+    }
+
+
+}
+
+else
+{
+    <p>No book details.</p>
+}
+    </Authorized>
+</AuthorizeView>
+
+
+
+@code {
+    [Parameter]
+    public int bookId { get; set; }
+
+    public string? ErrorMessage { get; set; }
+
+    public string? SuccessMessage { get; set; }
+
+    private bool HasReservedBook { get; set; }
+
+    private Book? Book { get; set; }
+
+    private Loan? Loan { get; set; }
+
+    private Reservation? Reservation { get; set; }
+
+    private string userId { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? authenticationState { get; set; }
+
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            var currentUser = await UserManager.GetUserAsync(user);
+            userId = currentUser.Id;
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        using var context = ContextFactory.CreateDbContext();
+
+        
+
+        Book = await context.Books.Include(bk => bk.Loans)
+                                   .Include(bk => bk.Reservations)
+                                   .FirstOrDefaultAsync(bk => bk.Id == bookId);
+     
+    }
+
+   
+
+
+    private bool CheckReservationStatus()
+    {
+        return Book?.Reservations.Any(r => r.PatronId == userId && !r.IsFulfilled)
+        ?? false;
+    }
+
+    private bool CheckLoanStatus()
+    {
+        return Book?.Loans.Any(l => l.PatronId == userId && !l.IsReturned)
+            ?? false;
+    }
+
+    private async Task BorrowBook()
+    {
+        using var context = ContextFactory.CreateDbContext();
+        // Check if the book is available for borrowing
+        if (Book.AvailableCopies < 1)
+        {
+            ErrorMessage = "This book is currently unavailable for borrowing.";
+            return;
+        }
+
+        // Check if there are any reservations for the book
+        var reservations = Book.Reservations
+            .Where(r => !r.IsFulfilled)
+            .OrderBy(r => r.ReservationDate);
+
+        if (reservations.Count() >= Book.AvailableCopies)
+        {
+            var currentPatronReservation = reservations.FirstOrDefault(r => r.PatronId == userId);
+            if (currentPatronReservation == null)
+            {
+                ErrorMessage = "This book is currently reserved and unavailable for borrowing.";
+                return;
+            }
+
+            // If the current patron has a reservation, check if they are first in line
+            if (reservations.Take(Book.AvailableCopies).Last().Id != currentPatronReservation.Id)
+            {
+                ErrorMessage = "This book has been reserved by another patron before you and so is unavailable for borrowing until they rescind their reservation.";
+                return;
+            }
+
+            // Set the reservation as fulfilled
+            currentPatronReservation.IsFulfilled = true;
+            context.Reservations.Update(currentPatronReservation);
+        }
+
+        // Create a new loan entry
+        var loan = new Loan
+            {
+                BookId = Book.Id,
+                PatronId = userId,
+                CheckoutDate = DateTime.Now,
+                DueDate = DateTime.Now.AddDays(7),
+                IsReturned = false
+            };
+
+        // Check if there is a reservation for the book being borrowed
+        // Find the reservation to cancel
+        var reservation = Book?.Reservations
+                        .FirstOrDefault(r => r.PatronId == userId && !r.IsFulfilled);
+
+        if (reservation != null)
+        {
+            // Set the reservation as fulfilled
+            reservation.IsFulfilled = true;
+            context.Reservations.Update(reservation);
+        }
+
+        Book.AvailableCopies--;
+        // Save the loan to the database
+        context.Loans.Add(loan);
+        context.Books.Update(Book);
+        await context.SaveChangesAsync();
+
+
+
+        // Redirect to the appropriate page
+
+        SuccessMessage = "Book Borrowed Successfully";
+        await Task.Delay(TimeSpan.FromSeconds(1.2));
+        NavigationManager.NavigateTo("/books/list");
+    }
+
+    private async Task ReserveBook()
+    {
+        using var context = ContextFactory.CreateDbContext();
+
+        // Check if the user has already reserved the book
+        HasReservedBook = CheckReservationStatus();
+
+        var hasActiveLoan = CheckLoanStatus();
+
+        if (HasReservedBook || hasActiveLoan)
+        {
+            if (hasActiveLoan)
+            {
+                ErrorMessage = "Book already on Loan to you";
+                return;
+            }
+            else
+            {
+                ErrorMessage = "Book already Reserved By you";
+                return;
+            }
+
+        }
+
+        // Create a new reservation
+        var reservation = new Reservation
+            {
+                BookId = Book.Id,
+                PatronId = userId,
+                ReservationDate = DateTime.Now,
+                IsFulfilled = false
+            };
+
+        // Save the reservation to the database
+        context.Reservations.Add(reservation);
+        await context.SaveChangesAsync();
+
+        SuccessMessage = "Book Reserved Successfully";
+        await Task.Delay(TimeSpan.FromSeconds(3));
+        NavigationManager.NavigateTo("/books/list");
+    }
+
+    private async Task CancelReservation()
+    {
+        using var context = ContextFactory.CreateDbContext();
+
+        // Find the reservation to cancel
+        var reservation = Book?.Reservations.FirstOrDefault(r => r.PatronId == userId && !r.IsFulfilled);
+
+        if (reservation != null)
+        {
+            // Update the IsFulfilled property
+            reservation.IsFulfilled = true;
+
+            // Save the changes to the database
+            context.Reservations.Update(reservation);
+            await context.SaveChangesAsync();
+        }
+
+        // Redirect to the appropriate page
+        await Task.Delay(TimeSpan.FromSeconds(3));
+        NavigationManager.NavigateTo("/reservations/list");
+    }
+
+    private async Task RenewBook()
+    {
+        using var context = ContextFactory.CreateDbContext();
+
+        // Get the current loan for the book and patron
+        var loan = Book?.Loans.FirstOrDefault(l => l.PatronId == userId && !l.IsReturned);
+
+        if (loan == null)
+        {
+            ErrorMessage = "No active loan found for renewal.";
+            return;
+        }
+
+        // Check if the due date has already passed
+        if (loan.DueDate < DateTime.Now.Date)
+        {
+            ErrorMessage = "Cannot renew book. The due date has already passed.";
+            return;
+        }
+
+        // Check if it has been more than two weeks since the checkout date
+        if (loan.CheckoutDate.AddDays(14) < DateTime.Now.Date)
+        {
+            ErrorMessage = "Cannot renew book. It has been more than two weeks since the checkout date.";
+            return;
+        }
+
+        // Update the due date by adding one week
+        loan.DueDate = loan.DueDate.AddDays(7);
+
+        // Save the changes to the database
+        context.Loans.Update(loan);
+        await context.SaveChangesAsync();
+
+        // Display success message or perform any desired action
+        SuccessMessage = "Book successfully renewed!";
+    }
+
+    private async Task ReturnBook()
+    {
+        using var context = ContextFactory.CreateDbContext();
+
+        // Get the current loan for the book and patron
+        var loan = Book?.Loans.FirstOrDefault(l => l.PatronId == userId && !l.IsReturned);
+
+        if (loan == null)
+        {
+            ErrorMessage = "No active loan found for return.";
+            return;
+        }
+
+        // Set the return date
+        loan.ReturnDate = DateTime.Now;
+
+        // Mark the loan as returned
+        loan.IsReturned = true;
+
+        // Increase the available copies of the book
+        Book.AvailableCopies++;
+
+        // Save the changes to the database
+        context.Loans.Update(loan);
+        context.Books.Update(Book);
+        await context.SaveChangesAsync();
+
+        // Display success message
+        SuccessMessage = "Book successfully returned!";
+        await Task.Delay(TimeSpan.FromSeconds(1.2));
+        NavigationManager.NavigateTo("/books/list");
+    }
+
+
+
+}

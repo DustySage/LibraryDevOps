@@ -1,0 +1,71 @@
+﻿@page "/patrons/add"
+@using LibraryManagement.Data;
+@using LibraryManagement.Data.Models;
+@using Microsoft.EntityFrameworkCore;
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IDbContextFactory<ApplicationDbContext> ContextFactory
+
+
+<PageTitle>Add Patron</PageTitle>
+
+<h1>Add Patron</h1>
+
+@if (Patron is not null)
+{
+    <EditForm Model="@Patron">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label for="FirstName" class="form-label">First Name</label>
+            <InputText class="form-control" id="FirstName"
+                   @bind-Value="Patron.FirstName" />
+            <ValidationMessage For="() => Patron.FirstName" />
+        </div>
+        <div class="mb-3">
+            <label for="LastName" class="form-label">Last Name</label>
+            <InputText class="form-control" id="LastName"
+                   @bind-Value="Patron.LastName" />
+            <ValidationMessage For="() => Patron.LastName" />
+        </div>
+        <div class="mb-3">
+            <label for="Email" class="form-label">Email</label>
+            <InputText class="form-control" id="Email"
+                   @bind-Value="Patron.Email" />
+            <ValidationMessage For="() => Patron.Email" />
+        </div>
+        <div class="mb-3">
+            <label for="PhoneNumber" class="form-label">Phone Number</label>
+            <InputText class="form-control" id="PhoneNumber"
+                   @bind-Value="Patron.PhoneNumber" />
+            <ValidationMessage For="() => Patron.PhoneNumber" />
+        </div>
+        <div class="mb-3">
+            <label for="Password" class="form-label">Password</label>
+            <InputText class="form-control" id="Password"
+                   @bind-Value="Patron.Password" />
+            <ValidationMessage For="() => Patron.Password" />
+        </div>
+        <div class="mb-3">
+            <label for="IsLibrarian" class="form-label">IsLibrarian</label>
+            <InputCheckbox class="form-check-input" id="IsLibrarian"
+                   @bind-Value="Patron.IsLibrarian" />
+            <ValidationMessage For="() => Patron.IsLibrarian" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </EditForm>
+}
+
+@code {
+    public Patron? Patron { get; set; }
+    private bool IsBusy { get; set; }
+    private string? SuccessMessage { get; set; }
+    private string? ErrorMessage { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Patron = new();
+    }
+}

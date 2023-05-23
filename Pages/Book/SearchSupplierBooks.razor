@@ -1,0 +1,84 @@
+﻿@page "/books/supplier"
+@inject HttpClient httpClient
+@using Newtonsoft.Json.Linq
+
+<input type="text" class="form-control" placeholder="Search for a book" @oninput="SearchBooks" />
+<ul class="list-group mt-2" style="max-height: 600px; overflow-y: scroll" >
+    @foreach (var book in Books)
+    {
+        <li class="list-group-item" data-id="@book.Id" @onclick="() => SelectBook(book.Id)">
+            <div class="d-flex">
+                @if (book.ImageLinks != null && book.ImageLinks.Count > 0)
+                {
+                    <img src="@book.ImageLinks.First().Value" alt="@book.Title" style="max-height: 150px; margin-right: 10px" />
+                }
+                <div>
+                    <h5>@book.Title</h5>
+                    <p>by @book.Author</p>
+                </div>
+            </div>
+        </li>
+    }
+</ul>
+
+@code {
+    private string SearchTerm { get; set; } = "";
+    private List<BookSearchResult> Books { get; set; } = new List<BookSearchResult>();
+
+    private async Task SearchBooks(ChangeEventArgs e)
+    {
+        SearchTerm = e.Value.ToString();
+        if (string.IsNullOrWhiteSpace(SearchTerm))
+        {
+            Books.Clear();
+            return;
+        }
+
+        var response = await httpClient.GetAsync($"https://www.googleapis.com/books/v1/volumes?q={Uri.EscapeDataString(SearchTerm)}&langRestrict=en&printType=books");
+        if (response.IsSuccessStatusCode)
+        {
+            var json = await response.Content.ReadAsStringAsync();
+            var data = JObject.Parse(json);
+            var items = data["items"] as JArray;
+            if (items != null)
+            {
+                Books = items.Select(item => new BookSearchResult
+                    {
+                        Id = item["id"].Value<string>(),
+                        Title = item["volumeInfo"]["title"].Value<string>(),
+                        Author = item["volumeInfo"]["authors"]?.FirstOrDefault()?.Value<string>() ?? "Unknown",
+                        Description = item["volumeInfo"]["description"]?.Value<string>(),
+                        ImageLinks = item["volumeInfo"]["imageLinks"]?.ToObject<Dictionary<string, string>>(),
+                        Isbn = item["volumeInfo"]["industryIdentifiers"]?.FirstOrDefault(x => x["type"].Value<string>() == "ISBN_13")?["identifier"]?.Value<string>()
+                    }).ToList();
+            }
+            else
+            {
+                Books.Clear();
+            }
+        }
+        else
+        {
+            Books.Clear();
+        }
+    }
+
+    public class BookSearchResult
+    {
+        public string Id { get; set; }
+        public string Title { get; set; }
+        public string Author { get; set; }
+        public string Description { get; set; }
+        public string Isbn { get; set; }
+        public Dictionary<string, string> ImageLinks { get; set; }
+    }
+
+    private void SelectBook(string bookId)
+    {
+        var selectedBook = Books.FirstOrDefault(book => book.Id == bookId);
+        if (selectedBook != null)
+        {
+            // Do something with the selected book, e.g. redirect to a page to show its details
+        }
+    }
+}

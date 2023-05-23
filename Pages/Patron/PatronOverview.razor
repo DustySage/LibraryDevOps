@@ -1,0 +1,61 @@
+﻿@page "/patrons/list"
+@using LibraryManagement.Data;
+@using LibraryManagement.Data.Models;
+@using Microsoft.EntityFrameworkCore;
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IDbContextFactory<ApplicationDbContext> ContextFactory
+
+
+<PageTitle>Patrons</PageTitle>
+
+<h1>Patrons</h1>
+
+@if (patrons is null)
+{
+    <div class="spinner-border" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Loans</th>
+                <th>Reservations</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var patron in patrons)
+            {
+                <tr>
+                    <td>@patron.FirstName</td>
+                    <td>@patron.LastName</td>
+                    <td>@patron.Loans.Count</td>
+                    <td>@patron.Reservations.Count</td>
+                    <td>
+                        <button class="btn btn-primary">Edit</button>
+                        <button class="btn btn-danger">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Patron>? patrons { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = ContextFactory.CreateDbContext();
+        patrons = await context.Patrons
+        .Include(pt => pt.Loans)
+        .Include(pt => pt.Reservations)
+        .ToListAsync();
+    }
+}

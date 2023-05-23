@@ -1,0 +1,92 @@
+﻿@page "/books/list"
+@using LibraryManagement.Data;
+@using LibraryManagement.Data.Models;
+@using Microsoft.EntityFrameworkCore;
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IDbContextFactory<ApplicationDbContext> ContextFactory
+
+
+<PageTitle>Books</PageTitle>
+
+<h1>Books</h1>
+
+<div class="mb-3">
+    <input type="text" class="form-control" placeholder="Search For Books By Title, Author, or ISBN" @bind-value="@searchTerm">
+</div>
+
+@if (books is null)
+{
+    <div class="spinner-border" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+}
+else
+{
+    @if (filteredBooks.Count == 0)
+    {
+        <p>No books found.</p>
+    }
+    else
+    {
+
+
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-6">
+            @foreach (var book in filteredBooks)
+            {
+                <div class="col mb-4">
+                    <div class="card h-100 d-flex flex-column rounded">
+                        <img src="@book.ImageUrl" class="card-img-top flex-fill rounded-top" alt="Book Image">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">@book.Title</h5>
+                            <p class="card-text">Author: @book.Author</p>
+                            <p class="card-text">ISBN: @book.Isbn</p>
+                            <div class="mt-auto">
+                                <a href="@($"/books/view/{book.Id}")" class="btn btn-primary">View Details</a>
+                                <AuthorizeView Roles="Librarian">
+                                    <Authorized>
+                                        <a href="@($"/books/edit/{book.Id}")" class="btn btn-secondary">Manage Book</a>
+                                    </Authorized>
+                                </AuthorizeView>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<Book>? books { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = ContextFactory.CreateDbContext();
+        books = await context.Books
+        .Include(bk => bk.Loans)
+        .Include(bk => bk.Reservations)
+        .ToListAsync();
+    }
+
+    private string searchTerm = "";
+
+    private List<Book> filteredBooks
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(searchTerm))
+            {
+                return books ?? new List<Book>();
+            }
+            else
+            {
+                return (books ?? new List<Book>())
+                    .Where(bk => bk.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+                        || bk.Author.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+                        || bk.Isbn.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+        }
+    }
+}

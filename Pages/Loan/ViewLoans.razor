@@ -1,0 +1,123 @@
+﻿@page "/loans/list"
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IDbContextFactory<ApplicationDbContext> ContextFactory
+@inject IDbContextFactory<ApplicationDbContext> ContextFactory
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<AppUser> UserManager
+@attribute [Authorize(Roles = "Patron")]
+
+<PageTitle>View Loans</PageTitle>
+
+<h1>Loans</h1>
+@if (loans is null)
+{
+    <div class="spinner-border" role="status">
+        <span class="visually-hidden">You Don't have any Books on Loan'</span>
+    </div>
+}
+else
+{
+    <table>
+
+        <thead>
+            <tr>
+                <th>Book Title</th>
+                <th>Author</th>
+                <th>Checkout Date</th>
+                <th>Due Date</th>
+                <th>View Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var loan in loans.Where(l => l.PatronId == userId && !l.IsReturned))
+            {
+                @if (!loan.IsReturned)
+                {
+                    <tr>
+
+                        <td>@loan.Book.Title</td>
+                        <td>@loan.Book.Author</td>
+                        <td>@loan.CheckoutDate.ToShortDateString()</td>
+                        <td>@loan.DueDate.ToShortDateString()</td>
+                        <td>
+                            <a href="@($"/books/view/{@loan.Book.Id}")" class="btn btn-secondary">View Book</a>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+
+    @if (!IsMyAccount)
+    {
+        <div><h3>Past Loans</h3></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Book Title</th>
+                    <th>Author</th>
+                    <th>Checkout Date</th>
+                    <th>Due Date</th>
+                    <th>Return Date</th>
+                    <th>View Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var loan in loans.Where(l => l.PatronId == userId && l.IsReturned))
+                {
+
+                    <tr>
+
+                        <td>@loan.Book.Title</td>
+                        <td>@loan.Book.Author</td>
+                        <td>@loan.CheckoutDate.ToShortDateString()</td>
+                        <td>@loan.DueDate.ToShortDateString()</td>
+                        <td>@loan.ReturnDate</td>
+                        <td>
+                            <a href="@($"/books/view/{@loan.Book.Id}")" class="btn btn-secondary">View Book</a>
+                        </td>
+                    </tr>
+
+                }
+            </tbody>
+        </table>
+    }
+
+}
+
+@code {
+    private List<Loan>? loans { get; set; }
+
+
+    private List<Book>? books { get; set; }
+
+    private string userId { get; set; }
+
+    [Parameter]
+    public bool IsMyAccount { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            var currentUser = await UserManager.GetUserAsync(user);
+            userId = currentUser.Id;
+        }
+
+        using var context = ContextFactory.CreateDbContext();
+        loans = await context.Loans
+        .Include(ls => ls.Book)
+        .ToListAsync();
+
+        books = await context.Books.ToListAsync();
+
+
+
+    }
+}

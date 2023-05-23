@@ -1,0 +1,130 @@
+﻿@page "/reservations/list"
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IDbContextFactory<ApplicationDbContext> ContextFactory
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<AppUser> UserManager
+@attribute [Authorize(Roles = "Patron")]
+
+<PageTitle>Reservations</PageTitle>
+
+<h1>Reservations</h1>
+
+@if (reservations is null)
+{
+    <div class="spinner-border" role="status">
+        <span class="visually-hidden">You Don't have any Books on Reserve'</span>
+    </div>
+}
+else
+{
+    <table>
+
+        <thead>
+            <tr>
+                <th>Book Title</th>
+                <th>Author</th>
+                <th>Reservation Date</th>
+                <th>View Details</th>
+                <th> Available to Borrow</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var reservation in reservations.Where(r => r.PatronId == userId && !r.IsFulfilled))
+            {
+                @if (!reservation.IsFulfilled)
+                {
+                    <tr>
+
+                        <td>@reservation.Book.Title</td>
+                        <td>@reservation.Book.Author</td>
+                        <td>@reservation.ReservationDate.ToShortDateString()</td>
+                        <td>
+                            <a href="@($"/books/view/{@reservation.Book.Id}")" class="btn btn-secondary">View Book</a>
+                        </td>
+                        <td>
+                            @if (@reservation.Book.AvailableCopies >= 1 && reservations
+                            .Take(@reservation.Book.AvailableCopies).Last().PatronId == userId)
+                            {
+                                <p>Yes</p>
+                            }
+                            else
+                            {
+                                <p>No</p>
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+
+    @if (!IsMyAccount)
+    {
+        <div><h3>Past Reservations</h3></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Book Title</th>
+                    <th>Author</th>
+                    <th>Reservation Date</th>
+                    <th>View Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var reservation in reservations.Where(r => r.PatronId == userId && r.IsFulfilled))
+                {
+
+                    <tr>
+
+                        <td>@reservation.Book.Title</td>
+                        <td>@reservation.Book.Author</td>
+                        <td>@reservation.ReservationDate.ToShortDateString()</td>
+                        <td>
+                            <a href="@($"/books/view/{@reservation.Book.Id}")" class="btn btn-secondary">View Book</a>
+                        </td>
+                    </tr>
+
+                }
+            </tbody>
+        </table>
+    }
+
+
+}
+
+@code {
+    private List<Reservation>? reservations { get; set; }
+
+
+    private List<Book>? books { get; set; }
+
+    private string userId { get; set; }
+
+    [Parameter]
+    public bool IsMyAccount { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            var currentUser = await UserManager.GetUserAsync(user);
+            userId = currentUser.Id;
+        }
+
+        using var context = ContextFactory.CreateDbContext();
+        reservations = await context.Reservations
+        .Include(rs => rs.Book)
+        .ToListAsync();
+
+        books = await context.Books.ToListAsync();
+
+        
+
+    }
+}

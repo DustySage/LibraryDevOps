@@ -1,0 +1,22 @@
+﻿@page "/PatronOverview"
+@inject IDbContextFactory<ApplicationDbContext> ContextFactory
+@inject NavigationManager NavigationManager
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<AppUser> UserManager
+@attribute [Authorize(Roles = "Patron")]
+
+<h3>MyAccountOverview</h3>
+
+<LibraryManagement.Pages.Reservation.ReservationOverview IsMyAccount="true">
+
+</LibraryManagement.Pages.Reservation.ReservationOverview>
+
+<LibraryManagement.Pages.Loan.ViewLoans IsMyAccount="true">
+
+</LibraryManagement.Pages.Loan.ViewLoans>
+
+@code {
+
+}

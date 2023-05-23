@@ -1,0 +1,43 @@
+﻿@page "/"
+
+<PageTitle>Home</PageTitle>
+
+<h1>Home</h1>
+
+<AuthorizeView Roles="Patron,Librarian">
+    <Authorized>
+        <p>Hello, @context.User.Identity.Name!</p>
+        <div class="homepage-container">
+            <div class="background-image"></div>
+            <div class="homepage-content">
+                <h1>Welcome to The Library</h1>
+                <p>Explore our collection of books and manage your account.</p>
+
+                <div class="links">
+                    @if (context.User.IsInRole("Patron"))
+                    {
+                        <a href="/PatronOverview">My Account</a>
+                        <a href="/books/list">Books</a>
+                        <a href="/loans/list">Loans</a>
+                        <a href="/reservations/list">Reservations</a>
+                    }
+                    else if (context.User.IsInRole("Librarian"))
+                    {
+                        <a href="/books/add">Add Books</a>
+                        <a href="/books/list">Books</a>
+                        <a href="/report-generator">Weekly Report</a>
+                    }
+                </div>
+            </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <p>You're not signed in. You can:</p>
+        <div class="button-container">
+            <a href="identity/account/login" class="btn btn-primary">Sign In</a>
+            <a href="identity/account/register" class="btn btn-secondary">Register</a>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+

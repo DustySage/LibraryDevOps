@@ -1,0 +1,9 @@
+# Ignore bin and obj folders
+bin/
+obj/
+
+# Ignore log files and other generated files
+*.log
+*.bak
+*.cache
+*.dll

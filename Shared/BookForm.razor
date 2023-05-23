@@ -1,0 +1,100 @@
+﻿@if (Book is not null)
+{
+    <EditForm Model="@Book" OnValidSubmit="@HandleValidSubmit"
+          OnInvalidSubmit="@HandleInvalidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <div class="mb-3">
+            <label for="Title">Title</label>
+            <InputText id="Title" class="form-control" @bind-Value="Book.Title" />
+            <ValidationMessage For="() => Book.Title" />
+        </div>
+        <div class="mb-3">
+            <label for="Author">Author</label>
+            <InputText id="Author" class="form-control" @bind-Value="Book.Author" />
+            <ValidationMessage For="() => Book.Author" />
+        </div>
+        <div class="mb-3">
+            <label for="ISBN">ISBN</label>
+            <InputText id="ISBN" class="form-control" @bind-Value="Book.Isbn" />
+            <ValidationMessage For="() => Book.Isbn" />
+        </div>
+        <div class="mb-3">
+            <label for="Description">Description</label>
+            <InputText id="Description" class="form-control" @bind-Value="Book.Description" />
+            <ValidationMessage For="() => Book.Description" />
+        </div>
+        <div class="mb-3">
+            <label for="ImageUrl">ImageUrl</label>
+            <InputText id="ImageUrl" class="form-control" @bind-Value="Book.ImageUrl" />
+            <ValidationMessage For="() => Book.ImageUrl" />
+        </div>
+        <div class="mb-3">
+            <label for="TotalCopies">TotalCopies</label>
+            <InputNumber id="TotalCopies" class="form-control" @bind-Value="Book.TotalCopies" />
+            <ValidationMessage For="() => Book.TotalCopies" />
+        </div>
+        <div class="mb-3">
+            <label for="AvailableCopies">AvailableCopies</label>
+            <InputNumber id="AvailableCopies" class="form-control" @bind-Value="Book.AvailableCopies" />
+            <ValidationMessage For="() => Book.AvailableCopies" />
+        </div>
+
+        
+
+        @if (IsEdit || IsView)
+        {
+            if (IsEdit)
+            {
+                <button type="submit" class="btn btn-primary" disabled="@IsBusy">Update Book</button>
+                <button type="button" class="btn btn-secondary" disabled="@IsBusy"
+            @onclick="HandleCancel">
+                    Cancel
+                </button>
+            }
+            else
+            {
+
+            }
+        }
+        else
+        {
+            <button type="submit" class="btn btn-primary" disabled="@IsBusy">Add Book</button>
+        }
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public Book? Book { get; set; }
+    [Parameter]
+    public bool IsBusy { get; set; }
+    [Parameter]
+    public bool IsEdit { get; set; }
+    [Parameter]
+    public bool IsView { get; set; }
+    [Parameter]
+    public EventCallback<bool> OnSubmit { get; set; }
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private async Task HandleValidSubmit()
+    {
+        if (OnSubmit.HasDelegate)
+        {
+            await OnSubmit.InvokeAsync(true);
+        }
+    }
+    private async Task HandleInvalidSubmit()
+    {
+        await OnSubmit.InvokeAsync(false);
+    }
+    private async Task HandleCancel()
+    {
+        if (OnCancel.HasDelegate)
+        {
+            await OnCancel.InvokeAsync();
+        }
+    }
+
+}

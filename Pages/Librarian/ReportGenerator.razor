@@ -1,0 +1,161 @@
+﻿@page "/report-generator"
+@inject NavigationManager NavigationManager
+@using IronPdf
+@using System.Text;
+@inject IDbContextFactory<ApplicationDbContext> ContextFactory
+@attribute [Authorize(Roles = "Librarian")]
+
+<h3>ReportGenerator</h3>
+
+
+<button @onclick="GenerateReport">Generate Report</button>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4>Most Reserved Book</h4>
+            </div>
+            <div class="card-body">
+                <img src="@(_mostReservedBook?.ImageUrl)" alt="Most Reserved Book" class="img-fluid rounded mx-auto d-block mb-3" style="max-height: 200px;">
+                <h5 class="card-title">@(_mostReservedBook?.Title)</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4>Most Borrowed Book</h4>
+            </div>
+            <div class="card-body">
+                <img src="@(_mostBorrowedBook?.ImageUrl)" alt="Most Borrowed Book" class="img-fluid rounded mx-auto d-block mb-3" style="max-height: 200px;">
+                <h5 class="card-title">@(_mostBorrowedBook?.Title)</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private Book? _mostReservedBook;
+    private Book? _mostBorrowedBook;
+    private List<Book>? _books;
+    private List<Loan>? _loans;
+    private List<Reservation>? _reservations;
+    private List<AppUser>? _patrons;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        using var context = ContextFactory.CreateDbContext();
+
+        _books = await context.Books.ToListAsync();
+        _loans = await context.Loans.ToListAsync();
+        _reservations = await context.Reservations.ToListAsync();
+        _patrons = await context.Users.ToListAsync();
+
+
+        _mostReservedBook = await GetMostReservedBook();
+
+        // _mostReservedBook = await GetMostReservedBook();
+        _mostBorrowedBook = await GetMostBorrowedBook();
+    }
+
+
+
+    private async Task<Book> GetMostReservedBook()
+    {
+        // Query the database to find the book with the most reservations for the current day
+        using var context = ContextFactory.CreateDbContext();
+
+        var lastWeek = DateTime.Today.AddDays(-7);
+
+        var mostReservedBook = await context.Books
+            .Include(bk => bk.Reservations)
+            .Select(bk => new
+            {
+                Book = bk,
+                ReservationsCount = bk.Reservations.Count(r => r.ReservationDate.Date >= lastWeek && r.ReservationDate.Date <= DateTime.Today)
+            })
+            .OrderByDescending(x => x.ReservationsCount)
+            .Select(x => x.Book)
+            .FirstOrDefaultAsync();
+
+        return mostReservedBook;
+    }
+
+    private async Task<Book> GetMostBorrowedBook()
+    {
+        // Query the database to find the book with the most loans for the current day
+        using var context = ContextFactory.CreateDbContext();
+
+        var lastWeek = DateTime.Today.AddDays(-7);
+        var mostBorrowedBook = await context.Books
+            .Include(b => b.Loans)
+            .Where(b => b.Loans.Any(l => l.CheckoutDate.Date >= lastWeek && l.CheckoutDate.Date <= DateTime.Today))
+            .OrderByDescending(b => b.Loans.Count(l => l.CheckoutDate.Date >= lastWeek && l.CheckoutDate.Date <= DateTime.Today))
+            .FirstOrDefaultAsync();
+
+        return mostBorrowedBook;
+    }
+
+
+
+    private async Task<List<(AppUser, List<Loan>, List<Reservation>)>> GetPatronLoanAndReservationInfo()
+    {
+        using var context = ContextFactory.CreateDbContext();
+
+        var nonLibrarianPatrons = context.Users.ToList();
+        // Get all non-librarian patrons
+       // var nonLibrarianPatrons = _patrons.ToList();
+
+        // Create a list to store the patron information
+        var patronInfo = new List<(AppUser, List<Loan>, List<Reservation>)>();
+
+        foreach (var patron in nonLibrarianPatrons)
+        {
+            // Get the loans and reservations for the current patron
+            var loans = _loans.Where(l => l.PatronId == patron.Id && !l.IsReturned).ToList();
+            var reservations = _reservations.Where(r => r.PatronId == patron.Id && !r.IsFulfilled).ToList();
+
+            // Add the patron, loans, and reservations to the list
+            patronInfo.Add((patron, loans, reservations));
+        }
+
+        return patronInfo;
+    }
+
+    private async Task GenerateReport()
+    {
+        var mostReservedBook = await GetMostReservedBook();
+        var mostBorrowedBook = await GetMostBorrowedBook();
+        var patronInfo = await GetPatronLoanAndReservationInfo();
+
+        // Construct the HTML content of the report
+        var reportContent = new StringBuilder();
+        reportContent.Append("<html>");
+        reportContent.Append("<head>");
+        reportContent.Append($"<title>Report - {DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss")}</title>");
+        reportContent.Append("</head>");
+        reportContent.Append("<body>");
+        reportContent.Append("<h1>Report</h1>");
+        reportContent.Append($"<p>Most reserved book of the week: {mostReservedBook.Title}</p>");
+        reportContent.Append($"<p>Most borrowed book of the week: {mostBorrowedBook.Title}</p>");
+        reportContent.Append("<p>Patron info:</p>");
+        reportContent.Append("<ul>");
+       foreach (var pi in patronInfo)
+       {
+            reportContent.Append($"<li>{pi.Item1.FirstName} has {pi.Item2.Count} loans and {pi.Item3.Count} reservations</li>");
+        }
+        reportContent.Append("</ul>");
+        reportContent.Append("</body>");
+        reportContent.Append("</html>");
+
+        var htmlContent = reportContent.ToString();
+
+        // Render the HTML content to a PDF
+        var renderer = new IronPdf.HtmlToPdf();
+        var pdf = renderer.RenderHtmlAsPdf(htmlContent);
+
+        // Save the PDF to a file
+        File.WriteAllBytes($"report-{DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss")}.pdf", pdf.BinaryData);
+    }
+}

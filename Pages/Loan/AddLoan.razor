@@ -1,0 +1,32 @@
+﻿@page "/loans/add"
+@using LibraryManagement.Data;
+@using LibraryManagement.Data.Models;
+@using Microsoft.EntityFrameworkCore;
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IDbContextFactory<ApplicationDbContext> ContextFactory
+
+
+<PageTitle>Loans</PageTitle>
+
+<h1>Add Loan</h1>
+@if (Loan is not null)
+{
+    <EditForm Model="@Loan">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <button type="submit" class="btn btn-primary"></button>
+    </EditForm>
+}
+
+@code {
+    public Loan? Loan { get; set; }
+    private bool IsBusy { get; set; }
+    private string? SuccessMessage { get; set; }
+    private string? ErrorMessage { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Loan = new();
+    }
+}
