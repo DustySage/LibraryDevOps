@@ -1,0 +1,31 @@
+name: CodeQL Analysis
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  codeql:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Setup CodeQL
+        uses: github/codeql-action/init@v1
+
+      - name: Build and analyze
+        run: |
+          dotnet build --configuration Release
+          npx codeql database create --language=csharp --source-root=./
+          npx codeql analyze --database=./codeql-database --sarif-path=results.sarif
+
+      - name: Upload results
+        uses: github/codeql-action/upload-sarif@v1
+        with:
+          sarif_file: results.sarif
