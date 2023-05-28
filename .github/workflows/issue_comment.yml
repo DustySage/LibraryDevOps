@@ -18,3 +18,15 @@ jobs:
             body: |
               Hello! Please begin work on the issue. Ádh Mhór!
             reactions: '+1'
+  notify-teams:
+    runs-on: ubuntu-latest
+    needs: comment-with-action
+    steps:
+      - name: Send message to Microsoft Teams
+        uses: microsoft/Teams-Notify@v1
+        with:
+          webhook-url: ${{ secrets.MSTEAMS_WEBHOOK_URL }}
+          message: |
+            A new issue has been opened in the repository.
+            Issue number: ${{ github.event.issue.number }}
+            Title: ${{ github.event.issue.title }}
