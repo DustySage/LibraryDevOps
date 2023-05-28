@@ -23,9 +23,9 @@ jobs:
     needs: comment-with-action
     steps:
       - name: Send message to Microsoft Teams
-        uses: microsoft/Teams-Notify@v1
+        uses: thechetantalwar/teams-notify@v2
         with:
-          webhook-url: ${{ secrets.MSTEAMS_WEBHOOK_URL }}
+          teams_webhook_url: ${{ secrets.MSTEAMS_WEBHOOK_URL }}
           message: |
             A new issue has been opened in the repository.
             Issue number: ${{ github.event.issue.number }}
